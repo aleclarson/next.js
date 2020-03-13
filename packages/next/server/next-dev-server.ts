@@ -85,6 +85,16 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        forkOptions: {
+          env: {
+            ...process.env,
+            // discard process.env.NODE_OPTIONS --inspect flag otherwise two debuggers are started in inspect
+            // mode when users will try to debug their Next.js application with NODE_OPTIONS='--inspect' next dev
+            NODE_OPTIONS: process.env.NODE_OPTIONS
+              ? process.env.NODE_OPTIONS.replace('--inspect', '')
+              : '',
+          },
+        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
