@@ -91,7 +91,7 @@ export default class DevServer extends Server {
             // discard process.env.NODE_OPTIONS --inspect flag otherwise two debuggers are started in inspect
             // mode when users will try to debug their Next.js application with NODE_OPTIONS='--inspect' next dev
             NODE_OPTIONS: process.env.NODE_OPTIONS
-              ? process.env.NODE_OPTIONS.replace('--inspect', '')
+              ? process.env.NODE_OPTIONS.replace(/--inspect(-brk)?(=\S+)? ?/, '')
               : '',
           },
         },
