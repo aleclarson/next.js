@@ -1,7 +1,7 @@
 // taskr babel plugin with Babel 7 support
 // https://github.com/lukeed/taskr/pull/305
 
-const extname = require('path').extname
+const path = require('path')
 const transform = require('@babel/core').transform
 
 const babelClientOpts = {
@@ -67,6 +67,10 @@ module.exports = function(task) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
 
+    // Replace `.ts|.tsx` with `.js` in files with an extension
+    const ext = path.extname(file.base)
+    const dest = file.base.slice(0, -ext.length) + (stripExtension ? '' : '.js')
+
     const babelOpts =
       serverOrClient === 'client' ? babelClientOpts : babelServerOpts
 
@@ -91,16 +95,14 @@ module.exports = function(task) {
       babelrc: false,
       configFile: false,
       filename: file.base,
+      sourceMaps: true,
+      sourceFileName: path.relative(
+        path.join('dist', file.dir),
+        path.join(file.dir, file.base)
+      ),
     }
     const output = transform(file.data, options)
-    const ext = extname(file.base)
-
-    // Replace `.ts|.tsx` with `.js` in files with an extension
-    if (ext) {
-      const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
-      // Remove the extension if stripExtension is enabled or replace it with `.js`
-      file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
-    }
+    file.base = dest
 
     // Workaround for noop.js loading
     if (file.base === 'next-dev.js') {
@@ -108,6 +110,22 @@ module.exports = function(task) {
         /__REPLACE_NOOP_IMPORT__/g,
         `import('./dev/noop');`
       )
+    }
+
+    if (output.map) {
+      const map = `${file.base}.map`
+
+      // append `sourceMappingURL` to original file
+      if (options.sourceMaps !== 'both') {
+        output.code += new Buffer(`\n//# sourceMappingURL=${map}`)
+      }
+
+      // add sourcemap to `files` array
+      this._.files.push({
+        base: map,
+        dir: file.dir,
+        data: new Buffer(JSON.stringify(output.map)),
+      })
     }
 
     file.data = Buffer.from(setNextVersion(output.code))
