@@ -29,6 +29,7 @@ import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
+import { isInspector, getNodeOptions } from './lib/utils'
 import { findPageFile } from './lib/find-page-file'
 import Worker from 'jest-worker'
 
@@ -80,21 +81,15 @@ export default class DevServer extends Server {
     }
     this.isCustomServer = !options.isNextDevCommand
     this.pagesDir = findPagesDir(this.dir)
+    if (isInspector()) {
+      process.env.NODE_OPTIONS = getNodeOptions()
+      this.nextConfig.experimental.cpus = 0
+    }
     this.staticPathsWorker = new Worker(
       require.resolve('./static-paths-worker'),
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
-        forkOptions: {
-          env: {
-            ...process.env,
-            // discard process.env.NODE_OPTIONS --inspect flag otherwise two debuggers are started in inspect
-            // mode when users will try to debug their Next.js application with NODE_OPTIONS='--inspect' next dev
-            NODE_OPTIONS: process.env.NODE_OPTIONS
-              ? process.env.NODE_OPTIONS.replace(/--inspect(-brk)?(=\S+)? ?/, '')
-              : '',
-          },
-        },
       }
     ) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
