@@ -31,6 +31,7 @@ import ErrorDebug from './error-debug'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import Worker from 'jest-worker'
+import { getNodeOptionsWithoutInspect } from './lib/utils'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -88,11 +89,11 @@ export default class DevServer extends Server {
         forkOptions: {
           env: {
             ...process.env,
-            // discard process.env.NODE_OPTIONS --inspect flag otherwise two debuggers are started in inspect
-            // mode when users will try to debug their Next.js application with NODE_OPTIONS='--inspect' next dev
-            NODE_OPTIONS: process.env.NODE_OPTIONS
-              ? process.env.NODE_OPTIONS.replace(/--inspect(-brk)?(=\S+)? ?/, '')
-              : '',
+            // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
+            // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
+            // the number of workers Next.js tries to launch. The only worker users are interested in debugging
+            // is the main Next.js one
+            NODE_OPTIONS: getNodeOptionsWithoutInspect(),
           },
         },
       }
